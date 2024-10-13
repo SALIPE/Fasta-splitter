@@ -1,0 +1,9 @@
+name = "FastaSplitter"
+uuid = "6f91f00d-768f-4b97-8300-21fe7b1be67f"
+authors = ["SALIPE <felipebuenosouza@uol.com.br>"]
+version = "0.1.0"
+
+[deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+FASTX = "c2308a5c-f048-11e8-3e8a-31650f418d12"
+TerminalMenus = "dc548174-15c3-5faf-af27-7997cfbde655"
