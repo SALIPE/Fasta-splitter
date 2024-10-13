@@ -1,6 +1,7 @@
 module FastaSplitter
-
 using FASTX, ArgParse, TerminalMenus
+
+export FastaSplitter
 
 function getSequencesFromFastaFile(
     filePath::String
@@ -77,4 +78,3 @@ end
 
 end # module FastaSplitter
 
-FastaSplitter.julia_main()
