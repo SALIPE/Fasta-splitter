@@ -36,12 +36,21 @@ function julia_main()::Cint
     @add_arg_table! setting begin
         "-f", "--file"
         help = "FASTA file to read"
+        required = true
+        "-o", "--output"
+        help = "Output filename"
+        required = false
     end
 
 
     parsedArgs = parse_args(ARGS, setting)
 
     filePath::AbstractString = parsedArgs["file"]
+    output::String = "output.fasta"
+    if (!isnothing(parsedArgs["output"]))
+        output = parsedArgs["output"]
+    end
+
 
     sequences = getSequencesFromFastaFile(filePath)
 
@@ -57,17 +66,18 @@ function julia_main()::Cint
 
     if length(choices) > 0
         println("Selected Sequeces:")
-        for i in choices
+        selectedOptions = sort!(collect(choices))
+        for i in selectedOptions
             println("  - ", options[i])
         end
-        selected = sequences[sort!(collect(choices))]
-
-        @show selected
-        file = "output.fasta"
-        println("\nExporting file: $file")
-        FASTAWriter(open(file, "w")) do writer
-            for record in selected
+        selected = sequences[selectedOptions]
+        size::Int = length(selected)
+        println("\nExporting file: $output")
+        progressBar!(0, size)
+        FASTAWriter(open(output, "w")) do writer
+            for (ii, record) in enumerate(selected)
                 write(writer, record)
+                progressBar!(ii, size)
             end
         end
     else
@@ -77,4 +87,6 @@ function julia_main()::Cint
 end
 
 end # module FastaSplitter
+
+# FastaSplitter.julia_main()
 
