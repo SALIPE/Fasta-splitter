@@ -12,7 +12,7 @@ Using `julia` terminal run the following code
 using PackageCompiler
 
 ## Firstime running
-create_app("FastaSplitter/","/path/of/compile/folder"; cpu_target="generic", force=true)
+create_app("FastaSplitter/","/path/of/compile/folder")
 
 ## In case of some erros you could try (force make to overwritten previous compiled files):
 # create_app("FastaSplitter/","/path/of/compile/folder"; cpu_target="generic", force=true)
