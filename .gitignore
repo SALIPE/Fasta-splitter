@@ -25,3 +25,5 @@ Manifest.toml
 *.fasta
 /FastaSplitterCompiled
 /.vscode
+*.gz
+*.zip
