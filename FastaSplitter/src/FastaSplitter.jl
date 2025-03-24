@@ -52,7 +52,7 @@ function splitDataset(
         @info "Exporting file: $key"
 
         FASTAWriter(
-            open("$dirPath/train/$(key)_train.fasta", "w")
+            open("$dirPath/train/$(key).fasta", "w")
         ) do writer
             for record in value[1:train_size]
                 write(writer, record)
@@ -60,7 +60,7 @@ function splitDataset(
         end
 
         FASTAWriter(
-            open("$dirPath/test/$(key)_test.fasta", "w")
+            open("$dirPath/test/$(key).fasta", "w")
         ) do writer
             for record in value[train_size+1:end]
                 write(writer, record)
