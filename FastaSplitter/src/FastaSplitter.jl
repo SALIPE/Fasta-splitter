@@ -29,8 +29,16 @@ end
 function splitDataset(
     dirPath::String
 )
+
+    try
+        rm("$dirPath/train", recursive=true)
+        rm("$dirPath/test", recursive=true)
+    catch
+        @error "Non directory to remove"
+    end
     ratio = 0.7
     variantDirs::Vector{String} = readdir(dirPath)
+
 
     dataset = Dict{String,Array{FASTX.FASTA.Record}}()
 
