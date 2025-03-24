@@ -9,10 +9,6 @@ function getSequencesFromFastaFile(
     sequences::Array{FASTX.FASTA.Record} = []
     for record in open(FASTAReader, filePath)
         push!(sequences, record)
-        # push!(sequences, codeunits(sequence(record)))
-        # println(identifier(record))
-        # println(sequence(record))
-        # println(description(record))
     end
     return sequences
 end
@@ -30,20 +26,81 @@ function progressBar!(current::Int, total::Int; width::Int=50)
     flush(stdout)
 end
 
+function splitDataset(
+    dirPath::String
+)
+    ratio = 0.7
+    variantDirs::Vector{String} = readdir(dirPath)
+
+    dataset = Dict{String,Array{FASTX.FASTA.Record}}()
+
+    @inbounds for i in eachindex(variantDirs)
+        variant::String = variantDirs[i]
+        @info "Collecting $variant"
+        sequences = getSequencesFromFastaFile("$dirPath/$variant/$variant.fasta")
+        dataset[variant] = sequences
+    end
+
+    minAmount = minimum(x -> length(x[2]), dataset)
+    @info "Min Sequence Amount $minAmount"
+
+    train_dataset = Dict{String,Array{FASTX.FASTA.Record}}()
+    test_dataset = Dict{String,Array{FASTX.FASTA.Record}}()
+
+    train_size::Int = ceil(minAmount * ratio)
+
+    mkpath("$dirPath/train")
+    mkpath("$dirPath/test")
+    for (key, value) in dataset
+        @info "Exporting file: $key"
+
+        FASTAWriter(
+            open("$dirPath/train/$(key)_train.fasta", "w")
+        ) do writer
+            for record in value[1:train_size]
+                write(writer, record)
+            end
+        end
+
+        FASTAWriter(
+            open("$dirPath/test/$(key)_test.fasta", "w")
+        ) do writer
+            for record in value[train_size+1:end]
+                write(writer, record)
+            end
+        end
+    end
+
+
+
+end
+
 
 function julia_main()::Cint
     setting = ArgParseSettings()
     @add_arg_table! setting begin
+        "balance-dataset"
+        action = :command
+        help = "Create balanced dataset"
+        "-d", "--directory"
+        help = "Dataset directory"
+        required = false
         "-f", "--file"
         help = "FASTA file to read"
-        required = true
+        required = false
         "-o", "--output"
         help = "Output filename"
         required = false
     end
 
 
-    parsedArgs = parse_args(ARGS, setting)
+    parsed_args = parse_args(ARGS, setting)
+    dirPath::AbstractString = parsed_args["directory"]
+
+    if parsed_args["%COMMAND%"] == "balance-dataset"
+        splitDataset(dirPath)
+        return 0
+    end
 
     filePath::AbstractString = parsedArgs["file"]
     output::String = "output.fasta"
@@ -72,7 +129,9 @@ function julia_main()::Cint
         end
         selected = sequences[selectedOptions]
         size::Int = length(selected)
-        println("\nExporting file: $output")
+
+        @info "Exporting file: $output"
+
         progressBar!(0, size)
         FASTAWriter(open(output, "w")) do writer
             for (ii, record) in enumerate(selected)
@@ -88,5 +147,5 @@ end
 
 end # module FastaSplitter
 
-# FastaSplitter.julia_main()
+FastaSplitter.julia_main()
 
