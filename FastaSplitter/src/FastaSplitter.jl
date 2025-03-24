@@ -44,9 +44,6 @@ function splitDataset(
     minAmount = minimum(x -> length(x[2]), dataset)
     @info "Min Sequence Amount $minAmount"
 
-    train_dataset = Dict{String,Array{FASTX.FASTA.Record}}()
-    test_dataset = Dict{String,Array{FASTX.FASTA.Record}}()
-
     train_size::Int = ceil(minAmount * ratio)
 
     mkpath("$dirPath/train")
