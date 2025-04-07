@@ -1,5 +1,5 @@
 module FastaSplitter
-using FASTX, ArgParse, TerminalMenus
+using FASTX, ArgParse, TerminalMenus, Random
 
 export FastaSplitter
 
@@ -12,6 +12,7 @@ function getSequencesFromFastaFile(
     end
     return sequences
 end
+
 
 function progressBar!(current::Int, total::Int; width::Int=50)
     progress = current / total
@@ -40,29 +41,38 @@ function splitDataset(
     variantDirs::Vector{String} = readdir(dirPath)
 
 
-    dataset = Dict{String,Array{FASTX.FASTA.Record}}()
+    dataset = Dict{String,Int}()
 
     @inbounds for i in eachindex(variantDirs)
         variant::String = variantDirs[i]
         @info "Collecting $variant"
-        sequences = getSequencesFromFastaFile("$dirPath/$variant/$variant.fasta")
-        dataset[variant] = sequences
+        for record in open(FASTAReader, "$dirPath/$variant/$variant.fasta")
+            if haskey(dataset, variant)
+                dataset[variant] += 1
+            else
+                dataset[variant] = 1
+            end
+        end
     end
 
-    minAmount = minimum(x -> length(x[2]), dataset)
-    @info "Min Sequence Amount $minAmount"
+    minAmount = argmin(dataset)
+    @info "Min Sequence Amount $minAmount - $(dataset[minAmount])"
 
-    train_size::Int = ceil(minAmount * ratio)
+    train_size::Int = ceil(dataset[minAmount] * ratio)
+    test_size::Int = dataset[minAmount] - train_size
 
     mkpath("$dirPath/train")
     mkpath("$dirPath/test")
-    for (key, value) in dataset
+    for (key, _) in dataset
         @info "Exporting file: $key"
+        sequences = getSequencesFromFastaFile("$dirPath/$key/$key.fasta")
+
+        shuffle!(sequences)
 
         FASTAWriter(
             open("$dirPath/train/$(key).fasta", "w")
         ) do writer
-            for record in value[1:train_size]
+            for record in sequences[1:train_size]
                 write(writer, record)
             end
         end
@@ -70,7 +80,7 @@ function splitDataset(
         FASTAWriter(
             open("$dirPath/test/$(key).fasta", "w")
         ) do writer
-            for record in value[train_size+1:end]
+            for record in sequences[train_size+1:end]
                 write(writer, record)
             end
         end
@@ -87,6 +97,9 @@ function julia_main()::Cint
         "balance-dataset"
         action = :command
         help = "Create balanced dataset"
+        "split-file"
+        action = :command
+        help = "Split FASTA file"
         "-d", "--directory"
         help = "Dataset directory"
         required = false
@@ -100,53 +113,65 @@ function julia_main()::Cint
 
 
     parsed_args = parse_args(ARGS, setting)
-    dirPath::AbstractString = parsed_args["directory"]
+    dirPath::Union{Nothing,AbstractString} = parsed_args["directory"]
 
     if parsed_args["%COMMAND%"] == "balance-dataset"
         splitDataset(dirPath)
         return 0
     end
 
-    filePath::AbstractString = parsedArgs["file"]
+    filePath::AbstractString = parsed_args["file"]
     output::String = "output.fasta"
-    if (!isnothing(parsedArgs["output"]))
-        output = parsedArgs["output"]
+    if (!isnothing(parsed_args["output"]))
+        output = parsed_args["output"]
     end
 
 
-    sequences = getSequencesFromFastaFile(filePath)
+    # sequences = getSequencesFromFastaFile(filePath)
 
-    options::Vector{String} = map(
-        x::FASTX.FASTA.Record -> identifier(x),
-        sequences)
+    # options::Vector{String} = map(
+    #     x::FASTX.FASTA.Record -> identifier(x),
+    #     sequences)
 
-    menu = MultiSelectMenu(options, pagesize=10)
+    variants::Vector{String} = ["Alpha", "Beta", "Delta", "Epsilon", "Eta", "Gamma", "Iota", "Kappa", "Lambda", "Omicron"]
 
-    # `request` returns a `Set` of selected indices
-    # if the menu us canceled (ctrl-c or q), return an empty set
-    choices = request("Select the sequences to extract:", menu)
-
-    if length(choices) > 0
-        println("Selected Sequeces:")
-        selectedOptions = sort!(collect(choices))
-        for i in selectedOptions
-            println("  - ", options[i])
-        end
-        selected = sequences[selectedOptions]
-        size::Int = length(selected)
-
-        @info "Exporting file: $output"
-
-        progressBar!(0, size)
-        FASTAWriter(open(output, "w")) do writer
-            for (ii, record) in enumerate(selected)
-                write(writer, record)
-                progressBar!(ii, size)
+    for var in variants
+        FASTAWriter(open("$var.fasta", "w")) do writer
+            for record in open(FASTAReader, filePath)
+                if (contains(identifier(record), var))
+                    write(writer, record)
+                end
             end
         end
-    else
-        println("Menu canceled.")
     end
+
+    # menu = MultiSelectMenu(options, pagesize=10)
+
+    # # `request` returns a `Set` of selected indices
+    # # if the menu us canceled (ctrl-c or q), return an empty set
+    # choices = request("Select the sequences to extract:", menu)
+
+    # if length(choices) > 0
+    #     println("Selected Sequeces:")
+    #     selectedOptions = sort!(collect(choices))
+    #     for i in selectedOptions
+    #         println("  - ", options[i])
+    #     end
+    #     selected = sequences[selectedOptions]
+    #     size::Int = length(selected)
+
+    #     @info "Exporting file: $output"
+
+    #     progressBar!(0, size)
+    #     FASTAWriter(open(output, "w")) do writer
+    #         for (ii, record) in enumerate(selected)
+    #             write(writer, record)
+    #             progressBar!(ii, size)
+    #         end
+    #     end
+    # else
+    #     println("Menu canceled.")
+    # end
     return 0
 end
 
