@@ -1,5 +1,8 @@
 #!/bin/bash
 
-DIR=~/Desktop/datasets/denv_eq
 
-julia --project src/FastaSplitter.jl --directory $DIR balance-dataset
+LOC=~/Desktop/Fasta-splitter/FastaSplitter
+
+cd $LOC && julia --project src/FastaSplitter.jl --directory $1 balance-dataset
+
+
