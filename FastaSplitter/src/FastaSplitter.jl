@@ -114,24 +114,62 @@ function julia_main()::Cint
 
     parsed_args = parse_args(ARGS, setting)
     dirPath::Union{Nothing,AbstractString} = parsed_args["directory"]
+    filePath::AbstractString = parsed_args["file"]
+    output::Union{Nothing,String} = parsed_args["output"]
+
+    if (isnothing(output))
+        output = "output.fasta"
+    end
 
     if parsed_args["%COMMAND%"] == "balance-dataset"
         splitDataset(dirPath)
         return 0
+
+    elseif parsed_args["%COMMAND%"] == "split-file"
+        sequences = getSequencesFromFastaFile(filePath)
+
+        options::Vector{String} = map(
+            x::FASTX.FASTA.Record -> identifier(x),
+            sequences)
+
+        menu = MultiSelectMenu(options, pagesize=10)
+
+        # `request` returns a `Set` of selected indices
+        # if the menu us canceled (ctrl-c or q), return an empty set
+        choices = request("Select the sequences to extract:", menu)
+
+        if length(choices) > 0
+            println("Selected Sequeces:")
+            selectedOptions = sort!(collect(choices))
+            for i in selectedOptions
+                println("  - ", options[i])
+            end
+            selected = sequences[selectedOptions]
+            size::Int = length(selected)
+
+            @info "Exporting file: $output"
+
+            progressBar!(0, size)
+            FASTAWriter(open(output, "w")) do writer
+                for (ii, record) in enumerate(selected)
+                    write(writer, record)
+                    progressBar!(ii, size)
+                end
+            end
+        else
+            println("Menu canceled.")
+        end
+
+        return 0
     end
 
-    filePath::AbstractString = parsed_args["file"]
-    output::String = "output.fasta"
+
     if (!isnothing(parsed_args["output"]))
         output = parsed_args["output"]
     end
 
 
-    # sequences = getSequencesFromFastaFile(filePath)
 
-    # options::Vector{String} = map(
-    #     x::FASTX.FASTA.Record -> identifier(x),
-    #     sequences)
 
     variants::Vector{String} = ["Alpha", "Beta", "Delta", "Epsilon", "Eta", "Gamma", "Iota", "Kappa", "Lambda", "Omicron"]
 
@@ -145,33 +183,7 @@ function julia_main()::Cint
         end
     end
 
-    # menu = MultiSelectMenu(options, pagesize=10)
 
-    # # `request` returns a `Set` of selected indices
-    # # if the menu us canceled (ctrl-c or q), return an empty set
-    # choices = request("Select the sequences to extract:", menu)
-
-    # if length(choices) > 0
-    #     println("Selected Sequeces:")
-    #     selectedOptions = sort!(collect(choices))
-    #     for i in selectedOptions
-    #         println("  - ", options[i])
-    #     end
-    #     selected = sequences[selectedOptions]
-    #     size::Int = length(selected)
-
-    #     @info "Exporting file: $output"
-
-    #     progressBar!(0, size)
-    #     FASTAWriter(open(output, "w")) do writer
-    #         for (ii, record) in enumerate(selected)
-    #             write(writer, record)
-    #             progressBar!(ii, size)
-    #         end
-    #     end
-    # else
-    #     println("Menu canceled.")
-    # end
     return 0
 end
 
